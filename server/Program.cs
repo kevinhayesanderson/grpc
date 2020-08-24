@@ -1,4 +1,5 @@
-﻿using Calculator;
+﻿using Blog;
+using Calculator;
 using Greet;
 using Grpc.Core;
 using Grpc.Reflection;
@@ -11,7 +12,7 @@ namespace server
 {
     class Program
     {
-        const int port = 50051;
+        const int port = 50052;
         static void Main(string[] args)
         {
             Server server = null;
@@ -27,13 +28,16 @@ namespace server
                 // ./evans.exe -r -p 50051
                 var greetingServiceReflectionServiceImpl = new ReflectionServiceImpl(GreetingService.Descriptor, ServerReflection.Descriptor);
                 var calculatorServiceReflectionServiceImpl = new ReflectionServiceImpl(CalculatorService.Descriptor, ServerReflection.Descriptor);
+                var blogServiceReflectionServiceImpl = new ReflectionServiceImpl(BlogService.Descriptor, ServerReflection.Descriptor);
 
                 server = new Server()
                 {
                     Services =
                     {
+                        BlogService.BindService(new BlogServiceImpl()),
+                        ServerReflection.BindService(blogServiceReflectionServiceImpl),
                         GreetingService.BindService(new GreetingServiceImpl()),
-                        ServerReflection.BindService(greetingServiceReflectionServiceImpl),
+                        //ServerReflection.BindService(greetingServiceReflectionServiceImpl),
                         CalculatorService.BindService(new CalculatorServiceImpl()),
                         //ServerReflection.BindService(calculatorServiceReflectionServiceImpl)
                     },

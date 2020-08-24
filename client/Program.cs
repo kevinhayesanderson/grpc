@@ -1,4 +1,5 @@
-﻿using Calculator;
+﻿using Blog;
+using Calculator;
 using Dummy;
 using Greet;
 using Grpc.Core;
@@ -11,7 +12,7 @@ namespace client
 {
     class Program
     {
-        //const string target = "127.0.0.1:50051";
+        //const string target = "127.0.0.1:50052";
 
         static async Task Main(string[] args)
         {
@@ -21,8 +22,8 @@ namespace client
 
             var channelCredentials = new SslCredentials(caCertificate, new KeyCertificatePair(clientCertificate, clientKey));
 
-            //Channel channel = new Channel("localhost", 50051, channelCredentials);
-            Channel channel = new Channel("localhost", 50051, ChannelCredentials.Insecure);
+            //Channel channel = new Channel(target, channelCredentials);
+            Channel channel = new Channel("localhost", 50052, ChannelCredentials.Insecure);
 
             await channel.ConnectAsync().ContinueWith((task) =>
             {
@@ -47,6 +48,13 @@ namespace client
             //await ComputeAverage(calculatorClient);
             //await FindMaximum(calculatorClient);
             //Sqrt(calculatorClient);
+
+            var blogClient = new BlogService.BlogServiceClient(channel);
+            //var newBlog = CreateBlog(blogClient);
+            //ReadBlog(blogClient);
+            //UpdateBlog(blogClient, newBlog);
+            //DeleteBlog(blogClient, newBlog);
+            await ListBlog(blogClient);
 
             channel.ShutdownAsync().Wait();
             Console.ReadKey();
@@ -208,6 +216,75 @@ namespace client
             var greetRequest = new GreetingRequest() { Greeting = greeting };
             var greetResponse = greetingClient.Greet(greetRequest);
             Console.WriteLine(greetResponse.Result);
+        }
+
+        private static async Task ListBlog(BlogService.BlogServiceClient client)
+        {
+            var response = client.ListBlog(new ListBlogRequest() { });
+            while (await response.ResponseStream.MoveNext())
+            {
+                Console.WriteLine(response.ResponseStream.Current.Blog.ToString());
+            }
+        }
+
+        private static void DeleteBlog(BlogService.BlogServiceClient client, Blog.Blog blog)
+        {
+            try
+            {
+                var response = client.DeleteBlog(new DeleteBlogRequest() { BlogId = blog.Id });
+                Console.WriteLine($"The blog with id {blog.Id} was deleted !");
+            }
+            catch (RpcException ex)
+            {
+                Console.WriteLine(ex.Status.Detail);
+            }
+        }
+
+        private static void UpdateBlog(BlogService.BlogServiceClient client, Blog.Blog blog)
+        {
+            try
+            {
+                blog.AuthorId = "updated author";
+                blog.Title = "updated title";
+                blog.Content = "updated content";
+                var response = client.UpdateBlog(new UpdateBlogRequest()
+                {
+                    Blog = blog
+                });
+                Console.WriteLine(response.Blog.ToString());
+            }
+            catch (RpcException ex)
+            {
+                Console.WriteLine(ex.Status.Detail);
+            }
+        }
+
+        private static void ReadBlog(BlogService.BlogServiceClient client)
+        {
+            try
+            {
+                var response = client.ReadBlog(new ReadBlogRequest() { BlogId = "5f43d20c3f7f04ca26460d27" });
+                Console.WriteLine(response.Blog.ToString());
+            }
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+            {
+                Console.WriteLine(ex.Status.Detail);
+            }
+        }
+
+        private static Blog.Blog CreateBlog(BlogService.BlogServiceClient client)
+        {
+            var response = client.CreateBlog(new CreateBlogRequest()
+            {
+                Blog = new Blog.Blog
+                {
+                    AuthorId = "Kevin",
+                    Title = "New Blog!",
+                    Content = "Hello World, this is a new blog!!"
+                }
+            });
+            Console.WriteLine($"The Blog with id {response.Blog.Id} was created !");
+            return response.Blog;
         }
     }
 }
